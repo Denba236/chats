@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logi aktywności - Admin</title>
+    <script src="/static/security.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --primary: #111; --bg: #f5f4f1; --text: #111; --text-muted: #888;
+            --border: rgba(0, 0, 0, 0.06); --accent: #3a5bd9; --card-bg: #fff;
+            --danger: #e74c3c; --success: #27ae60;
+        }
+        body.dark-mode {
+            --bg: #0a0a0a; --text: #f5f4f1; --text-muted: #666;
+            --border: rgba(255, 255, 255, 0.08); --card-bg: #141414;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: var(--card-bg); border-radius: 20px; padding: 30px; margin-bottom: 20px; }
+        .header h1 { color: var(--text); margin-bottom: 10px; }
+        .nav-links a { color: var(--accent); text-decoration: none; margin-right: 15px; }
+        .card { background: var(--card-bg); border-radius: 20px; padding: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
+        tr:hover { background: rgba(128,128,128,0.05); }
+        .badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .badge-login { background: rgba(58, 91, 217, 0.1); color: var(--accent); }
+        .badge-warning { background: rgba(231, 76, 60, 0.1); color: var(--danger); }
+        .badge-ban { background: rgba(243, 156, 18, 0.1); color: #f39c12; }
+    </style>
+    <style>
+        /* 3D Reveal Animations */
+        .reveal-3d {
+            opacity: 0;
+            transform-style: preserve-3d;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .reveal-3d.visible { opacity: 1; }
+        .reveal-from-bottom { transform: translateZ(-100px) translateY(60px) rotateX(15deg); }
+        .reveal-from-bottom.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-from-top { transform: translateZ(-100px) translateY(-60px) rotateX(-15deg); }
+        .reveal-from-top.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-scale { transform: translateZ(-200px) scale(0.5); }
+        .reveal-scale.visible { transform: translateZ(0) scale(1); }
+        .reveal-rotate { transform: translateZ(-150px) rotateY(90deg); }
+        .reveal-rotate.visible { transform: translateZ(0) rotateY(0); }
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+        .delay-400 { transition-delay: 400ms; }
+    </style>
+</head>
+<body>
+    <div class="container reveal-3d reveal-from-bottom">
+        <div class="header">
+            <h1>📊 Logi aktywności</h1>
+            <p style="color: var(--text-muted);">Historia działań użytkowników</p>
+            <div class="nav-links" style="margin-top: 15px;">
+                <a href="/admin">← Panel admina</a>
+                <a href="/chat">Czat</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Użytkownik</th>
+                        <th>Akcja</th>
+                        <th>Szczegóły</th>
+                        <th>IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ log.user_id }}</td>
+                        <td><span class="badge badge-{{ log.action|lower }}">{{ log.action }}</span></td>
+                        <td>{{ log.details or '-' }}</td>
+                        <td>{{ log.ip_address or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 40px;">Brak logów</td>
+                    </tr>
+                    {% endfor %}
+</tbody>
+            </table>
+        </div>
+    </script>
+    <script>
+        // 3D Scroll Reveal Animation
+        const revealElements = document.querySelectorAll('.reveal-3d');
+        function checkReveal() {
+            const windowHeight = window.innerHeight;
+            const revealPoint = 150;
+            revealElements.forEach(el => {
+                const elementTop = el.getBoundingClientRect().top;
+                if (elementTop < windowHeight - revealPoint) {
+                    el.classList.add('visible');
+                }
+            });
+        }
+        window.addEventListener('scroll', checkReveal);
+        window.addEventListener('load', checkReveal);
+        checkReveal();
+    </script>
+</body>
+</html>

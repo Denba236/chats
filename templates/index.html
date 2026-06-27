@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Messenger - Premium Edition</title>
+
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' ws: wss:;">
+
+    <script>
+        // Minimal DOMPurify fallback
+        if (typeof DOMPurify === 'undefined') {
+            window.DOMPurify = function(dirty) {
+                var tmp = typeof document !== 'undefined' ? document.createElement('div') : null;
+                if (tmp) {
+                    tmp.innerHTML = dirty;
+                    return tmp.textContent || tmp.innerText || '';
+                }
+                return dirty;
+            };
+            window.DOMPurify.sanitize = function(dirty) {
+                var tmp = typeof document !== 'undefined' ? document.createElement('div') : null;
+                if (tmp) {
+                    tmp.innerHTML = dirty;
+                    return tmp.textContent || tmp.innerText || '';
+                }
+                return dirty;
+            };
+        }
+        // Minimal marked fallback
+        if (typeof marked === 'undefined') {
+            window.marked = {
+                parse: function(text) { return text; }
+            };
+        }
+    </script>
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --primary: #111; --bg: #f5f4f1; --sidebar-bg: rgba(255, 255, 255, 0.7);
+            --text: #111; --text-muted: #888; --border: rgba(0, 0, 0, 0.06);
+            --my-msg: linear-gradient(135deg, #111 0%, #333 100%);
+            --other-msg: #ffffff; --card-bg: #fff; --sidebar-w: 280px; --accent: #3a5bd9;
+        }
+        body.dark-mode {
+            --bg: #0a0a0a; --sidebar-bg: rgba(20, 20, 20, 0.7); --text: #f5f4f1;
+            --text-muted: #666; --border: rgba(255, 255, 255, 0.08);
+            --my-msg: linear-gradient(135deg, #3a5bd9 0%, #2a4bb9 100%);
+            --other-msg: #1a1a1a; --card-bg: #141414; --primary: #fff;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); display: flex; height: 100vh; color: var(--text); overflow: hidden; }
+
+        /* Cursor & Blobs */
+        .cursor { width: 20px; height: 20px; background: #fff; mix-blend-mode: difference; position: fixed; pointer-events: none; z-index: 9999; border-radius: 50%; transform: translate(-50%, -50%); transition: width 0.3s, height 0.3s; }
+        .bg-blobs { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; overflow: hidden; }
+        .blob { position: absolute; border-radius: 50%; filter: blur(80px); opacity: 0.15; animation: move 20s infinite alternate; }
+        .blob-1 { width: 400px; height: 400px; background: var(--accent); top: -100px; right: -100px; }
+        .blob-2 { width: 300px; height: 300px; background: #ff4d4d; bottom: -50px; left: -50px; }
+        @keyframes move { from { transform: translate(0, 0); } to { transform: translate(100px, 100px); } }
+
+        /* Sidebar */
+        .sidebar { 
+            width: var(--sidebar-w); background: var(--sidebar-bg); backdrop-filter: blur(20px); 
+            border-right: 1px solid var(--border); display: flex; flex-direction: column; 
+            box-shadow: 5px 0 30px rgba(0,0,0,0.05);
+        }
+        .sidebar-header { padding: 25px; }
+        .mode-toggle { 
+            cursor: pointer; font-size: 12px; padding: 8px 14px; border: 1px solid var(--border); 
+            border-radius: 25px; width: fit-content; transition: 0.3s; display: flex; align-items: center; gap: 8px;
+        }
+        .mode-toggle:hover { background: var(--accent); color: white; border-color: var(--accent); }
+        .search-input { 
+            width: 100%; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--border); 
+            margin-top: 15px; background: rgba(0,0,0,0.03); color: var(--text); transition: 0.3s;
+        }
+        .search-input:focus { outline: none; border-color: var(--accent); background: var(--card-bg); box-shadow: 0 0 0 3px rgba(58, 91, 217, 0.1); }
+        #user-list { flex: 1; overflow-y: auto; padding: 10px 0; }
+        .user-item { 
+            padding: 15px 20px; cursor: pointer; display: flex; align-items: center; 
+            transition: 0.3s; border-radius: 14px; margin: 4px 12px;
+        }
+        .user-item:hover { 
+            background: rgba(58, 91, 217, 0.08); 
+            transform: translateX(5px);
+        }
+        .user-item.active { 
+            background: linear-gradient(135deg, rgba(58, 91, 217, 0.15) 0%, rgba(58, 91, 217, 0.05) 100%);
+            border-left: 4px solid var(--accent);
+        }
+        .user-avatar-small { 
+            width: 44px; height: 44px; border-radius: 14px; margin-right: 14px;
+            object-fit: cover; transition: 0.3s; box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        .user-item:hover .user-avatar-small { transform: scale(1.1); }
+        .user-name-item { font-weight: 500; font-size: 14px; }
+
+        /* Chat Area */
+        .chat-area { 
+            flex: 1; display: flex; flex-direction: column; position: relative;
+            background: linear-gradient(180deg, var(--bg) 0%, rgba(58, 91, 217, 0.02) 100%);
+        }
+        .chat-header { 
+            padding: 18px 30px; background: var(--sidebar-bg); backdrop-filter: blur(25px); 
+            border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.03);
+        }
+        .chat-header-avatar {
+            width: 50px; height: 50px; border-radius: 16px; object-fit: cover;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.15);
+        }
+        #messages { 
+            flex: 1; padding: 25px 30px; overflow-y: auto; display: flex; flex-direction: column; 
+            gap: 12px;
+        }
+        .message-bubble { 
+            padding: 14px 20px; border-radius: 20px; max-width: 70%; position: relative; 
+            animation: fadeInUp 0.3s ease; box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        @keyframes fadeInUp { 
+            from { opacity: 0; transform: translateY(15px) scale(0.95); } 
+            to { opacity: 1; transform: translateY(0) scale(1); } 
+        }
+        .my-message { 
+            background: var(--my-msg); color: #fff; align-self: flex-end; 
+            border-bottom-right-radius: 4px;
+            box-shadow: 0 4px 15px rgba(17, 17, 17, 0.2);
+        }
+        .other-message { 
+            background: var(--other-msg); color: var(--text); align-self: flex-start; 
+            border-bottom-left-radius: 4px; border: 1px solid var(--border);
+        }
+        .message-content { word-wrap: break-word; }
+        .message-content a { color: inherit; text-decoration: underline; }
+        .message-meta { 
+            font-size: 10px; opacity: 0.6; margin-top: 6px; text-align: right; 
+        }
+
+        /* Input */
+        #form { 
+            padding: 20px 30px; display: flex; align-items: center; gap: 15px;
+            background: var(--card-bg); border-top: 1px solid var(--border);
+        }
+        .input-container { 
+            flex: 1; background: var(--bg); border-radius: 28px; padding: 8px 20px; 
+            display: flex; align-items: center; border: 1px solid var(--border); transition: 0.3s;
+        }
+        .input-container:focus-within { 
+            border-color: var(--accent); box-shadow: 0 0 0 3px rgba(58, 91, 217, 0.1);
+        }
+        #user-text { 
+            flex: 1; border: none; padding: 12px; background: transparent; 
+            color: var(--text); outline: none; font-size: 15px;
+        }
+        .send-btn { 
+            width: 50px; height: 50px; border-radius: 50%; 
+            background: linear-gradient(135deg, var(--accent) 0%, #5a7be9 100%);
+            color: white; border: none; cursor: pointer; transition: 0.3s;
+            box-shadow: 0 4px 15px rgba(58, 91, 217, 0.3);
+        }
+        .send-btn:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(58, 91, 217, 0.4); }
+        .file-btn { 
+            background: none; border: none; font-size: 22px; cursor: pointer;
+            transition: 0.3s; padding: 8px;
+        }
+        .file-btn:hover { transform: scale(1.2); }
+
+        /* Notifications */
+        .notification-toggle-btn { 
+            position: fixed; top: 20px; right: 20px; width: 50px; height: 50px; 
+            border-radius: 50%; background: var(--accent); color: white; border: none; 
+            cursor: pointer; z-index: 1000; font-size: 20px; display: flex; 
+            justify-content: center; align-items: center; transition: 0.3s; box-shadow: 0 4px 15px rgba(58, 91, 217, 0.4);
+        }
+        .notification-toggle-btn:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(58, 91, 217, 0.5); }
+        .notification-panel { 
+            position: fixed; top: 0; right: -400px; width: 380px; height: 100vh; 
+            background: var(--card-bg); z-index: 10001; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); 
+            box-shadow: -10px 0 40px rgba(0,0,0,0.15); display: flex; flex-direction: column;
+        }
+        .notification-panel.open { right: 0; }
+        .notification-header { 
+            padding: 25px; background: linear-gradient(135deg, var(--accent) 0%, #5a7be9 100%); 
+            color: white; display: flex; justify-content: space-between; align-items: center;
+        }
+        .notification-header h3 { font-size: 18px; font-weight: 600; }
+        .notification-list { flex: 1; overflow-y: auto; padding: 15px; }
+        .notification-item { 
+            padding: 15px; border-bottom: 1px solid var(--border); cursor: pointer; 
+            border-radius: 12px; margin-bottom: 8px; transition: 0.2s; background: rgba(58, 91, 217, 0.03);
+        }
+        .notification-item:hover { background: rgba(58, 91, 217, 0.1); transform: translateX(-3px); }
+        .notification-item.unread { 
+            background: linear-gradient(135deg, rgba(58, 91, 217, 0.08) 0%, rgba(58, 91, 217, 0.03) 100%);
+            border-left: 3px solid var(--accent);
+        }
+        .notification-item .sender { font-weight: 600; color: var(--accent); }
+        .notification-item .text { font-size: 13px; color: var(--text-muted); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .notification-item .time { font-size: 11px; color: var(--text-muted); margin-top: 6px; opacity: 0.7; }
+        .badge-inline { 
+            display: inline-block; padding: 2px 8px; background: var(--accent); color: white; 
+            border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 8px;
+        }
+        .empty-notifications {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; color: var(--text-muted); padding: 40px; text-align: center;
+        }
+        .empty-notifications .icon { font-size: 48px; margin-bottom: 15px; opacity: 0.5; }
+        .notification-overlay { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; 
+            display: none; backdrop-filter: blur(3px); transition: 0.3s;
+        }
+        .notification-overlay.show { display: block; opacity: 1; }
+        .mark-all-read-btn {
+            padding: 14px; width: 100%; border: none; cursor: pointer;
+            background: rgba(58, 91, 217, 0.08); color: var(--accent);
+            font-weight: 600; transition: 0.3s; border-bottom: 1px solid var(--border);
+        }
+        .mark-all-read-btn:hover { background: var(--accent); color: white; }
+        .status-indicator { 
+            width: 12px; height: 12px; border-radius: 50%; background: #ccc; 
+            position: absolute; bottom: 0; right: 0; border: 2px solid var(--card-bg);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2); transition: 0.3s;
+        }
+        .status-indicator.online { 
+            background: #4caf50; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.5);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 2px 8px rgba(76, 175, 80, 0.5); }
+            50% { box-shadow: 0 2px 15px rgba(76, 175, 80, 0.8); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="cursor"></div>
+<div class="bg-blobs"><div class="blob blob-1"></div><div class="blob blob-2"></div></div>
+
+<button class="notification-toggle-btn" onclick="toggleNotificationPanel()">
+    🔔 <span id="notification-count-badge" style="display:none; position:absolute; top:0; right:0; background:red; font-size:10px; padding:2px 6px; border-radius:10px;">0</span>
+</button>
+
+<div class="notification-overlay" id="notification-overlay" onclick="toggleNotificationPanel()"></div>
+<div class="notification-panel" id="notification-panel">
+    <div class="notification-header">
+        <div>
+            <h3>Powiadomienia</h3>
+            <span id="notification-count-text" style="font-size:12px; opacity:0.8;">0 nieprzeczytanych</span>
+        </div>
+        <button onclick="toggleNotificationPanel()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+    </div>
+    <button onclick="markAllRead()" class="mark-all-read-btn">✓ Oznacz wszystkie jako przeczytane</button>
+    <div class="notification-list" id="notification-list"></div>
+</div>
+
+<div class="sidebar">
+    <div class="sidebar-header">
+        <div class="mode-toggle" id="mode-toggle"><span id="mode-icon">🌙</span> Dark Mode</div>
+        <input type="text" id="search-users" class="search-input" placeholder="Szukaj użytkowników...">
+    </div>
+    <div id="user-list">
+        {% for user in users %}
+        <div class="user-item" id="user-{{ user.user_name }}" data-name="{{ user.user_name }}" onclick="selectUser('{{ user.user_name }}', '{{ user.avatar_url }}')">
+            <div style="position: relative;">
+                <img src="{{ user.avatar_url or '/static/default-avatar.png' }}" class="user-avatar-small">
+                <span class="status-indicator {{ 'online' if user.status == 'online' }}" id="status-{{ user.user_name }}"></span>
+            </div>
+            <span>{{ user.user_name }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="sidebar-footer" style="padding: 20px;">
+        <a href="/logout" style="text-decoration:none; color:var(--text-muted); font-size:12px;">Wyloguj się</a>
+    </div>
+</div>
+
+<div class="chat-area">
+    <div class="chat-header">
+        <div id="header-avatar-container"></div>
+        <div>
+            <div id="chat-title" style="font-weight:bold;">Wybierz użytkownika</div>
+            <div id="typing-indicator" style="display:none; font-size:12px; color:var(--accent);">pisze...</div>
+        </div>
+    </div>
+    <div id="messages"></div>
+    <form id="form">
+        <input type="file" id="file-input" style="display:none">
+        <button type="button" onclick="document.getElementById('file-input').click()" style="background:none; border:none; font-size:20px; cursor:pointer;">📎</button>
+        <div class="input-container">
+            <input type="text" id="user-text" placeholder="Napisz wiadomość..." autocomplete="off">
+        </div>
+        <button type="submit" class="send-btn">➤</button>
+    </form>
+</div>
+
+<script>
+    const userName = "{{ current_user }}";
+    // WebSocket reconnection
+    let wsReconnectAttempts = 0;
+    const maxWsReconnectAttempts = 5;
+    
+    function connectWebSocket() {
+        const ws = new WebSocket(`ws://${window.location.host}/ws/${encodeURIComponent(userName)}`);
+        
+        ws.onopen = () => {
+            console.log('WebSocket connected');
+            wsReconnectAttempts = 0;
+        };
+        
+        ws.onclose = (e) => {
+            console.log('WebSocket closed:', e.code, e.reason);
+            // Try to reconnect
+            if (wsReconnectAttempts < maxWsReconnectAttempts) {
+                wsReconnectAttempts++;
+                console.log(`Reconnecting... attempt ${wsReconnectAttempts}`);
+                setTimeout(connectWebSocket, 2000 * wsReconnectAttempts);
+            }
+        };
+        
+        ws.onerror = (err) => {
+            console.error('WebSocket error:', err);
+        };
+
+        return ws;
+    }
+    
+    const ws = connectWebSocket();
+    const messagesDiv = document.getElementById('messages');
+    let selectedReceiver = null;
+    let typingTimeout = null;
+    let notifications = [];
+
+    console.log('Chat initialized for user:', userName);
+    console.log('WebSocket URL:', ws.url);
+
+    // Load initial notifications on page load
+    async function loadNotifications() {
+        try {
+            console.log('Fetching notifications...');
+            const res = await fetch('/api/notifications/all');
+            console.log('Response status:', res.status);
+            const data = await res.json();
+            console.log('Notifications data:', data);
+            console.log('Notifications list:', data.notifications);
+            console.log('Unread count:', data.unread_count);
+            
+            if (data.notifications && data.notifications.length > 0) {
+                notifications = data.notifications;
+                renderNotifications();
+                console.log('Notifications rendered:', notifications.length);
+            } else {
+                console.log('No notifications to display');
+                const list = document.getElementById('notification-list');
+                if (list) list.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">Brak powiadomień</div>';
+            }
+        } catch (err) {
+            console.error('Error loading notifications:', err);
+        }
+    }
+
+    // Load notifications immediately
+    loadNotifications();
+
+    // Debug - sprawdź czy messagesDiv istnieje
+    if (!messagesDiv) {
+        console.error('ERROR: messagesDiv element not found!');
+    } else {
+        console.log('messagesDiv found:', messagesDiv);
+    }
+
+    ws.onmessage = (e) => {
+        console.log('WebSocket message received:', e.data);
+        const data = JSON.parse(e.data);
+
+        if (data.type === 'typing' && data.sender === selectedReceiver) {
+            document.getElementById('typing-indicator').style.display = 'block';
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => { document.getElementById('typing-indicator').style.display = 'none'; }, 2000);
+            return;
+        }
+
+        if (data.type === "status") {
+            const el = document.getElementById(`status-${data.username}`);
+            if (el) el.classList.toggle('online', data.status === 'online');
+            return;
+        }
+
+        if (data.sender === selectedReceiver || data.sender === userName) {
+            console.log('Appending message from:', data.sender, 'text:', data.text);
+            if (data.type === 'message' && data.text) appendMessage(data.sender, data.text, data.id);
+            if (data.type === 'file') appendFile(data.sender, data.file_name, data.file_url, data.id);
+        } else {
+            addNotification(data);
+        }
+    };
+
+    async function selectUser(name, avatarUrl) {
+        console.log('Selecting user:', name);
+        selectedReceiver = name;
+        document.getElementById('chat-title').innerText = name;
+        document.querySelectorAll('.user-item').forEach(el => el.classList.toggle('active', el.id === `user-${name}`));
+        
+        if (!messagesDiv) {
+            console.error('messagesDiv not found!');
+            return;
+        }
+        
+        messagesDiv.innerHTML = "";
+        console.log('Loading messages for:', name);
+
+        try {
+            const res = await fetch(`/messages/${encodeURIComponent(name)}`);
+            console.log('Messages response status:', res.status);
+            const history = await res.json();
+            console.log('Messages loaded:', history.length);
+            
+            history.forEach(m => {
+                console.log('Loading message:', m);
+                if (m.text) appendMessage(m.sender, m.text, m.id);
+                else if (m.file) appendFile(m.sender, m.file, m.file_url, m.id);
+            });
+        } catch (err) {
+            console.error('Error loading messages:', err);
+        }
+    }
+
+    function appendMessage(sender, text, id) {
+        console.log('appendMessage called:', { sender, text, id });
+        
+        if (!messagesDiv) {
+            console.error('messagesDiv is null!');
+            return;
+        }
+        
+        const msg = document.createElement('div');
+        msg.className = `message-bubble ${sender === userName ? 'my-message' : 'other-message'}`;
+        msg.innerHTML = `<div class="message-content">${DOMPurify.sanitize(marked.parse(text))}</div>`;
+        
+        console.log('Appending message element:', msg);
+        messagesDiv.appendChild(msg);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        console.log('Message appended, scroll position:', messagesDiv.scrollTop);
+    }
+
+    function appendFile(sender, name, url, id) {
+        const msg = document.createElement('div');
+        msg.className = `message-bubble ${sender === userName ? 'my-message' : 'other-message'}`;
+        msg.innerHTML = `<a href="${url}" target="_blank" style="color:inherit;">📎 ${name}</a>`;
+        messagesDiv.appendChild(msg);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Formularz
+    document.getElementById('form').onsubmit = (e) => {
+        e.preventDefault();
+        const text = document.getElementById('user-text');
+        if (text.value.trim() && selectedReceiver) {
+            ws.send(JSON.stringify({ to: selectedReceiver, text: text.value, type: 'message' }));
+            text.value = "";
+        }
+    };
+
+    // Powiadomienia
+    function addNotification(data) {
+        notifications.unshift({
+            sender: data.sender,
+            text: data.text || data.file || 'Przesłał plik',
+            read: data.read === undefined ? false : data.read
+        });
+        renderNotifications();
+        // Play notification sound
+        playNotificationSound();
+    }
+
+    function playNotificationSound() {
+        try {
+            const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2teleScLRKjU3p7W0pRkDAk5o9TjtnMcFkGl1Oa0bi0LQ6fU4LJxJAxFodPjsnAlC0Sg0eKybycMR6DR4rJwJwxHodLjr20nDEah0eSvbicNRqHR5K9uJw1GodHkr24nDUah0eSvbicNRqHR5K9uJw1GodHk')
+            audio.volume = 0.3;
+            audio.play().catch(() => {});
+        } catch (e) {}
+    }
+
+    function renderNotifications() {
+        const list = document.getElementById('notification-list');
+        const badge = document.getElementById('notification-count-badge');
+        const countText = document.getElementById('notification-count-text');
+        
+        if (!list) {
+            console.error('notification-list element not found');
+            return;
+        }
+        
+        const unread = notifications.filter(n => !n.read).length;
+
+        badge.innerText = unread;
+        badge.style.display = unread > 0 ? 'block' : 'none';
+        
+        if (countText) {
+            countText.innerText = unread > 0 ? `${unread} nieprzeczytanych` : 'Brak powiadomień';
+        }
+
+        if (notifications.length === 0) {
+            list.innerHTML = `
+                <div class="empty-notifications">
+                    <div class="icon">🔔</div>
+                    <div>Brak powiadomień</div>
+                    <div style="font-size:12px; margin-top:8px;">Nowe wiadomości pojawią się tutaj</div>
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = notifications.map((n, i) => `
+            <div class="notification-item ${n.read ? '' : 'unread'}" onclick="handleNotificationClick(${i})">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span class="sender">${n.sender || n.user}</span>
+                    <span class="badge-inline" style="display:none;">${n.icon || ''}</span>
+                </div>
+                <div class="text">${n.text || ''}</div>
+                <div class="time">${n.time ? new Date(n.time).toLocaleString('pl-PL') : ''}</div>
+            </div>
+        `).join('');
+    }
+
+    function handleNotificationClick(index) {
+        const n = notifications[index];
+        n.read = true;
+        selectUser(n.sender);
+        toggleNotificationPanel();
+        renderNotifications();
+    }
+
+    function toggleNotificationPanel() {
+        document.getElementById('notification-panel').classList.toggle('open');
+        document.getElementById('notification-overlay').classList.toggle('show');
+    }
+
+    function markAllRead() {
+        notifications.forEach(n => n.read = true);
+        renderNotifications();
+    }
+
+    // Mode Toggle
+    document.getElementById('mode-toggle').onclick = () => {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('dark-mode', document.body.classList.contains('dark-mode') ? 'enabled' : 'disabled');
+    };
+
+    // Cursor
+    const cursor = document.querySelector(".cursor");
+    window.addEventListener("mousemove", e => {
+        cursor.style.left = `${e.clientX}px`;
+        cursor.style.top = `${e.clientY}px`;
+    });
+</script>
+
+</body>
+</html>

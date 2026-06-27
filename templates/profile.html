@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/static/security.js"></script>
+    <title>Profil: {{ profile_user.user_name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        .card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .cover {
+            height: 150px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .profile-section {
+            padding: 0 30px 30px;
+            text-align: center;
+        }
+        .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 5px solid white;
+            margin-top: -60px;
+            background: #ddd;
+            object-fit: cover;
+        }
+        .name {
+            font-size: 28px;
+            color: #333;
+            margin: 15px 0 5px;
+        }
+        .status {
+            color: #666;
+            margin-bottom: 20px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .online { background: #27ae60; }
+        .offline { background: #95a5a6; }
+        
+        .info-section {
+            border-top: 1px solid #eee;
+            padding: 20px 30px;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .info-label { color: #666; }
+        .info-value { color: #333; font-weight: 500; }
+        
+        .actions {
+            padding: 20px 30px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            text-decoration: none;
+            text-align: center;
+        }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-secondary { background: #f0f0f0; color: #333; }
+        .btn-danger { background: #e74c3c; color: white; }
+        
+        .nav-links {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .nav-links a { color: white; text-decoration: none; margin: 0 10px; }
+    </style>
+    <style>
+        /* 3D Reveal Animations */
+        .reveal-3d {
+            opacity: 0;
+            transform-style: preserve-3d;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .reveal-3d.visible { opacity: 1; }
+        .reveal-from-bottom { transform: translateZ(-100px) translateY(60px) rotateX(15deg); }
+        .reveal-from-bottom.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-from-top { transform: translateZ(-100px) translateY(-60px) rotateX(-15deg); }
+        .reveal-from-top.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-scale { transform: translateZ(-200px) scale(0.5); }
+        .reveal-scale.visible { transform: translateZ(0) scale(1); }
+        .reveal-rotate { transform: translateZ(-150px) rotateY(90deg); }
+        .reveal-rotate.visible { transform: translateZ(0) rotateY(0); }
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+        .delay-400 { transition-delay: 400ms; }
+    </style>
+</head>
+<body>
+    <div class="container reveal-3d reveal-from-bottom">
+        <div class="card">
+            <div class="cover"></div>
+            <div class="profile-section">
+                <img src="{{ profile_user.avatar_url or '/static/default-avatar.png' }}" class="avatar" alt="Avatar">
+                <h1 class="name">{{ profile_user.user_name }}</h1>
+                <p class="status">
+                    <span class="status-indicator {{ 'online' if profile_user.user_name in active_connections else 'offline' }}"></span>
+                    {{ profile_user.status or 'Offline' }}
+                </p>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-row">
+                    <span class="info-label">Dołączył</span>
+                    <span class="info-value">{{ profile_user.created_at.strftime('%Y-%m-%d') if profile_user.created_at else 'N/A' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Ostatnio widziany</span>
+                    <span class="info-value">{{ profile_user.last_seen.strftime('%Y-%m-%d %H:%M') if profile_user.last_seen else 'N/A' }}</span>
+                </div>
+            </div>
+            
+            <div class="actions">
+                {% if is_friend %}
+                <a href="/chat" class="btn btn-primary">Wiadomość</a>
+                <button class="btn btn-secondary" onclick="removeFriend()">Usuń znajomego</button>
+                {% elif profile_user.user_name != current_user %}
+                <button class="btn btn-primary" onclick="addFriend()">Dodaj do znajomych</button>
+                <button class="btn btn-secondary" onclick="reportUser()">Zgłoś</button>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="nav-links">
+            <a href="/chat">← Czat</a>
+            <a href="/friends">Znajomi</a>
+        </div>
+    </div>
+    
+    <script>
+        const profileUsername = "{{ profile_user.user_name }}";
+        
+        async function addFriend() {
+            try {
+                const formData = new FormData();
+                formData.append('username', profileUsername);
+                
+                const response = await fetch(`/api/friend/request/${profileUsername}`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    alert('Zaproszenie wysłane!');
+                } else {
+                    alert(result.error || 'Błąd');
+                }
+            } catch (err) {
+                alert('Błąd połączenia');
+            }
+        }
+        
+        async function reportUser() {
+            const comment = prompt('Powód zgłoszenia:');
+            if (!comment) return;
+            
+            try {
+                const formData = new FormData();
+                formData.append('reported_name', profileUsername);
+                formData.append('comment', comment);
+                
+                const response = await fetch('/report', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    alert('Zgłoszenie wysłane');
+                }
+            } catch (err) {
+                alert('Błąd');
+            }
+        }
+        
+        async function removeFriend() {
+            if (!confirm('Czy na pewno chcesz usunąć tego znajomego?')) return;
+            
+            // Implementation would need friend ID
+            alert('Funkcja wymaga implementacji');
+        }
+    </script>
+    <script>
+        // 3D Scroll Reveal Animation
+        const revealElements = document.querySelectorAll('.reveal-3d');
+        function checkReveal() {
+            const windowHeight = window.innerHeight;
+            const revealPoint = 150;
+            revealElements.forEach(el => {
+                const elementTop = el.getBoundingClientRect().top;
+                if (elementTop < windowHeight - revealPoint) {
+                    el.classList.add('visible');
+                }
+            });
+        }
+        window.addEventListener('scroll', checkReveal);
+        window.addEventListener('load', checkReveal);
+        checkReveal();
+    </script>
+</body>
+</html>

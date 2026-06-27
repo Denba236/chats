@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Messenger</title>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 25px;
+            padding: 40px;
+            max-width: 450px;
+            width: 100%;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.25);
+        }
+        .logo {
+            text-align: center;
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: 0.3s;
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .error-message {
+            background: #fee;
+            color: #e74c3c;
+            padding: 12px 18px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .success-message {
+            background: #efe;
+            color: #27ae60;
+            padding: 12px 18px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .links {
+            text-align: center;
+            margin-top: 25px;
+            color: #666;
+        }
+        .links a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .links a:hover {
+            text-decoration: underline;
+        }
+        .divider {
+            text-align: center;
+            margin: 25px 0;
+            color: #999;
+            position: relative;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            width: 40%;
+            height: 1px;
+            background: #eee;
+        }
+        .divider::before { left: 0; }
+        .divider::after { right: 0; }
+        .password-strength {
+            height: 4px;
+            background: #eee;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .password-strength-bar {
+            height: 100%;
+            width: 0;
+            transition: 0.3s;
+        }
+        .strength-weak { background: #e74c3c; width: 33%; }
+        .strength-medium { background: #f39c12; width: 66%; }
+        .strength-strong { background: #27ae60; width: 100%; }
+        .hidden { display: none; }
+
+        /* 3D Reveal Animations */
+        .reveal-3d {
+            opacity: 0;
+            transform-style: preserve-3d;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .reveal-3d.visible { opacity: 1; }
+        .reveal-from-bottom { transform: translateZ(-100px) translateY(60px) rotateX(15deg); }
+        .reveal-from-bottom.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-from-top { transform: translateZ(-100px) translateY(-60px) rotateX(-15deg); }
+        .reveal-from-top.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-scale { transform: translateZ(-200px) scale(0.5); }
+        .reveal-scale.visible { transform: translateZ(0) scale(1); }
+        .reveal-rotate { transform: translateZ(-150px) rotateY(90deg); }
+        .reveal-rotate.visible { transform: translateZ(0) rotateY(0); }
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+        .delay-400 { transition-delay: 400ms; }
+        .btn-3d {
+            transform-style: preserve-3d;
+            position: relative;
+        }
+        .btn-3d::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: inherit;
+            border-radius: inherit;
+            transform: translateZ(-1px);
+            filter: brightness(0.8);
+            transition: all 0.3s ease;
+        }
+        .btn-3d:hover::after { transform: translateZ(-15px); bottom: -15px; }
+        .btn-3d:active::after { transform: translateZ(-5px); bottom: -8px; }
+        
+        .btn-google {
+            background: white;
+            color: #333;
+            border: 2px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-google:hover {
+            background: #f8f8f8;
+            border-color: #ddd;
+        }
+
+        /* 2FA specific */
+        .totp-input {
+            text-align: center;
+            letter-spacing: 10px;
+            font-size: 24px !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container reveal-3d reveal-scale">
+        <div class="logo reveal-3d reveal-scale delay-100">💬</div>
+        
+        {% if error %}
+        <div class="error-message reveal-3d reveal-from-bottom">{{ error }}</div>
+        {% endif %}
+        
+        {% if message %}
+        <div class="success-message reveal-3d reveal-from-bottom">{{ message }}</div>
+        {% endif %}
+        
+        <!-- Login Form -->
+        <div id="login-form" class="reveal-3d reveal-from-bottom delay-200 {{ 'hidden' if title != 'Logowanie' else '' }}">
+            <h1>Witaj ponownie!</h1>
+            <p class="subtitle">Zaloguj się, aby kontynuować</p>
+
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Nazwa użytkownika</label>
+                    <input type="text" id="login-username" required autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Hasło</label>
+                    <input type="password" id="login-password" required autocomplete="current-password">
+                </div>
+                <div id="login-captcha-container" class="form-group hidden">
+                    <label id="login-captcha-question"></label>
+                    <input type="text" id="login-captcha-answer" placeholder="Twoja odpowiedź">
+                    <input type="hidden" id="login-captcha-token">
+                </div>
+                <div id="login-error-message" class="error-message hidden"></div>
+                <div id="login-attempts-left" style="text-align: center; color: #666; font-size: 12px; margin-bottom: 10px;"></div>
+                <button type="submit" class="btn" id="login-btn">Zaloguj się</button>
+            </form>
+
+            <div class="links">
+                <a href="#" onclick="showForgotPassword()">Zapomniałeś hasła?</a>
+            </div>
+
+            <div class="divider">lub</div>
+
+            <a href="/auth/google" class="btn btn-google">
+                <img src="https://www.google.com/favicon.ico" alt="Google" style="width: 20px; height: 20px; vertical-align: middle; margin-right: 10px;">
+                Zaloguj przez Google
+            </a>
+
+            <div class="links">
+                Nie masz konta? <a href="/register">Zarejestruj się</a>
+            </div>
+        </div>
+        
+        <!-- Register Form -->
+        <div id="register-form" class="{{ 'hidden' if title != 'Rejestracja' else '' }}">
+            <h1>Utwórz konto</h1>
+            <p class="subtitle">Dołącz do naszego czatu</p>
+
+            <form id="registerForm" onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label>Nazwa użytkownika</label>
+                    <input type="text" id="reg-username" required minlength="3" autocomplete="username">
+                </div>
+                <div class="form-group">
+                    <label>Email (opcjonalnie)</label>
+                    <input type="email" id="reg-email" placeholder="uzytkownik@example.com" autocomplete="email">
+                    <small style="color: #666; font-size: 12px;">Email pomoże w odzyskiwaniu konta</small>
+                </div>
+                <div class="form-group">
+                    <label>Hasło</label>
+                    <input type="password" id="reg-password" required minlength="8" oninput="checkStrength()" autocomplete="new-password">
+                    <div class="password-strength">
+                        <div class="password-strength-bar" id="strength-bar"></div>
+                    </div>
+                    <small id="strength-text" style="color: #666; font-size: 12px;"></small>
+                </div>
+                <div class="form-group">
+                    <label>Powtórz hasło</label>
+                    <input type="password" id="reg-password-confirm" required autocomplete="new-password">
+                </div>
+                <div id="reg-captcha-container" class="form-group hidden">
+                    <label id="reg-captcha-question"></label>
+                    <input type="text" id="reg-captcha-answer" placeholder="Twoja odpowiedź">
+                    <input type="hidden" id="reg-captcha-token">
+                </div>
+                <button type="submit" class="btn">Zarejestruj się</button>
+            </form>
+
+            <div class="links">
+                Masz już konto? <a href="/login">Zaloguj się</a>
+            </div>
+        </div>
+        
+        <!-- Forgot Password Form -->
+        <div id="forgot-form" class="hidden">
+            <h1>Resetowanie hasła</h1>
+            <p class="subtitle">Podaj swoją nazwę użytkownika</p>
+            
+            <form id="forgotForm" onsubmit="handleForgotPassword(event)">
+                <div class="form-group">
+                    <label>Nazwa użytkownika</label>
+                    <input type="text" id="forgot-username" required>
+                </div>
+                <button type="submit" class="btn">Wyślij token</button>
+            </form>
+            
+            <div class="links">
+                <a href="#" onclick="showLogin()">← Wróć do logowania</a>
+            </div>
+        </div>
+        
+        <!-- Reset Password Form -->
+        <div id="reset-form" class="{{ 'hidden' if not reset_token else '' }}">
+            <h1>Nowe hasło</h1>
+            <p class="subtitle">Wprowadź nowe hasło</p>
+            
+            <form id="resetForm" onsubmit="handleResetPassword(event)">
+                <input type="hidden" id="reset-token" value="{{ reset_token or '' }}">
+                <div class="form-group">
+                    <label>Nowe hasło</label>
+                    <input type="password" id="reset-password" required minlength="8" autocomplete="new-password">
+                    <div class="password-strength">
+                        <div class="password-strength-bar" id="reset-strength-bar"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Powtórz hasło</label>
+                    <input type="password" id="reset-password-confirm" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn">Zmień hasło</button>
+            </form>
+        </div>
+        
+        <!-- 2FA Form -->
+        <div id="2fa-form" class="hidden">
+            <h1>🔐 Weryfikacja 2FA</h1>
+            <p class="subtitle">Wprowadź kod z aplikacji</p>
+            
+            <form id="2faForm" onsubmit="handle2FA(event)">
+                <input type="hidden" id="2fa-username">
+                <div class="form-group">
+                    <label>Kod 6-cyfrowy</label>
+                    <input type="text" class="totp-input" id="2fa-code" maxlength="6" pattern="[0-9]*" inputmode="numeric" required>
+                </div>
+                <button type="submit" class="btn">Zweryfikuj</button>
+            </form>
+            
+            <div class="links">
+                <a href="#" onclick="showLogin()">← Wróć do logowania</a>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showLogin() {
+            hideAll();
+            document.getElementById('login-form').classList.remove('hidden');
+        }
+        
+        function showRegister() {
+            hideAll();
+            document.getElementById('register-form').classList.remove('hidden');
+        }
+        
+        function showForgotPassword() {
+            hideAll();
+            document.getElementById('forgot-form').classList.remove('hidden');
+        }
+        
+        function show2FA(username) {
+            hideAll();
+            document.getElementById('2fa-username').value = username;
+            document.getElementById('2fa-form').classList.remove('hidden');
+        }
+        
+        function hideAll() {
+            document.querySelectorAll('.container > div').forEach(el => {
+                if (el.id !== 'login-form') el.classList.add('hidden');
+            });
+        }
+        
+        function checkStrength() {
+            const password = document.getElementById('reg-password').value;
+            const bar = document.getElementById('strength-bar');
+            const text = document.getElementById('strength-text');
+
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (/[A-Z]/.test(password) && /[a-z]/.test(password)) strength++;
+            if (/\d/.test(password)) strength++;
+            if (/[^A-Za-z0-9]/.test(password)) strength++;
+
+            bar.className = 'password-strength-bar';
+            if (strength <= 1) {
+                bar.classList.add('strength-weak');
+                text.innerText = 'Słabe hasło';
+                text.style.color = '#e74c3c';
+            } else if (strength <= 2) {
+                bar.classList.add('strength-medium');
+                text.innerText = 'Średnie hasło';
+                text.style.color = '#f39c12';
+            } else {
+                bar.classList.add('strength-strong');
+                text.innerText = 'Silne hasło';
+                text.style.color = '#27ae60';
+            }
+        }
+        
+        async function handleLogin(e) {
+            e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            btn.disabled = true;
+            btn.innerText = 'Logowanie...';
+
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            // Add captcha if present
+            const captchaToken = document.getElementById('login-captcha-token')?.value;
+            const captchaAnswer = document.getElementById('login-captcha-answer')?.value;
+
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('password', password);
+            if (captchaToken) formData.append('captcha_token', captchaToken);
+            if (captchaAnswer) formData.append('captcha_answer', captchaAnswer);
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.ok) {
+                    if (result.email_not_verified) {
+                        showEmailNotVerified(result.user_email);
+                    } else if (result.requires_2fa) {
+                        show2FA(username);
+                    } else {
+                        window.location.href = result.redirect || '/chat';
+                    }
+                } else {
+                    showLoginError(result.error || 'Błędne dane logowania');
+                    
+                    // If captcha required, show it
+                    if (result.require_captcha && result.captcha) {
+                        showLoginCaptcha(result.captcha);
+                    }
+                    
+                    // Show attempts left
+                    if (result.remaining !== undefined) {
+                        document.getElementById('login-attempts-left').innerText = 
+                            `Pozostało prób: ${result.remaining}`;
+                    }
+                    
+                    if (result.locked) {
+                        btn.disabled = true;
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.innerText = 'Zaloguj się';
+                        }, 300000); // 5 minutes
+                    } else {
+                        btn.disabled = false;
+                        btn.innerText = 'Zaloguj się';
+                    }
+                }
+            } catch (err) {
+                showLoginError('Błąd połączenia');
+                btn.disabled = false;
+                btn.innerText = 'Zaloguj się';
+            }
+        }
+        
+        function showLoginError(message) {
+            const errorDiv = document.getElementById('login-error-message');
+            errorDiv.innerText = message;
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => errorDiv.classList.add('hidden'), 10000);
+        }
+        
+        function showLoginCaptcha(captchaData) {
+            const container = document.getElementById('login-captcha-container');
+            container.classList.remove('hidden');
+            document.getElementById('login-captcha-question').innerText = captchaData.question;
+            document.getElementById('login-captcha-token').value = captchaData.token;
+            document.getElementById('login-captcha-answer').value = '';
+        }
+        
+        async function handleRegister(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('reg-username').value;
+            const email = document.getElementById('reg-email')?.value || '';
+            const password = document.getElementById('reg-password').value;
+            const confirm = document.getElementById('reg-password-confirm').value;
+            
+            // Get captcha if present
+            const captchaToken = document.getElementById('reg-captcha-token')?.value;
+            const captchaAnswer = document.getElementById('reg-captcha-answer')?.value;
+
+            if (password !== confirm) {
+                alert('Hasła nie są identyczne');
+                return;
+            }
+
+            if (password.length < 8) {
+                alert('Hasło musi mieć co najmniej 8 znaków');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('email', email);
+            formData.append('password', password);
+            if (captchaToken) formData.append('captcha_token', captchaToken);
+            if (captchaAnswer) formData.append('captcha_answer', captchaAnswer);
+
+            try {
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    window.location.href = '/login';
+                } else {
+                    const result = await response.json();
+                    alert(result.detail || result.error || 'Błąd rejestracji');
+                }
+            } catch (err) {
+                alert('Błąd rejestracji');
+            }
+        }
+        
+        function showEmailNotVerified(email) {
+            if (confirm(`Twój email (${email}) nie został zweryfikowany. Czy chcesz teraz zweryfikować email?`)) {
+                // Could redirect to verification page
+                alert('Sprawdź swoją skrzynkę email i kliknij link weryfikacyjny.');
+            }
+            window.location.href = '/chat';
+        }
+        
+        async function handleForgotPassword(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('forgot-username').value;
+            const formData = new FormData();
+            formData.append('username', username);
+            
+            try {
+                const response = await fetch('/api/forgot-password', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    if (result.debug_token) {
+                        alert(`Token resetowania: ${result.debug_token}\n(W produkcji zostałby wysłany e-mailem)`);
+                    } else {
+                        alert(result.message);
+                    }
+                }
+            } catch (err) {
+                alert('Błąd');
+            }
+        }
+        
+        async function handleResetPassword(e) {
+            e.preventDefault();
+            
+            const token = document.getElementById('reset-token').value;
+            const password = document.getElementById('reset-password').value;
+            const confirm = document.getElementById('reset-password-confirm').value;
+            
+            if (password !== confirm) {
+                alert('Hasła nie są identyczne');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('token', token);
+            formData.append('new_password', password);
+            
+            try {
+                const response = await fetch('/api/reset-password', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    alert('Hasło zostało zresetowane! Możesz się teraz zalogować.');
+                    window.location.href = '/login';
+                } else {
+                    alert(result.error || 'Błąd resetowania hasła');
+                }
+            } catch (err) {
+                alert('Błąd');
+            }
+        }
+        
+        async function handle2FA(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('2fa-username').value;
+            const code = document.getElementById('2fa-code').value;
+            
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('totp_code', code);
+            
+            try {
+                const response = await fetch('/api/login/verify-2fa', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.ok) {
+                    window.location.href = result.redirect || '/chat';
+                } else {
+                    alert('Nieprawidłowy kod 2FA');
+                }
+            } catch (err) {
+                alert('Błąd');
+            }
+        }
+        
+        // Auto-submit 2FA after 6 digits
+        document.addEventListener('input', (e) => {
+            if (e.target.id === '2fa-code' && e.target.value.length === 6) {
+                document.getElementById('2faForm').requestSubmit();
+            }
+        });
+
+        // 3D Scroll Reveal Animation
+        const revealElements = document.querySelectorAll('.reveal-3d');
+        function checkReveal() {
+            const windowHeight = window.innerHeight;
+            const revealPoint = 150;
+            revealElements.forEach(el => {
+                const elementTop = el.getBoundingClientRect().top;
+                if (elementTop < windowHeight - revealPoint) {
+                    el.classList.add('visible');
+                }
+            });
+        }
+        window.addEventListener('scroll', checkReveal);
+        window.addEventListener('load', checkReveal);
+        checkReveal();
+    </script>
+</body>
+</html>

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konfiguracja 2FA - Messenger</title>
+    <script src="/static/security.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 25px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.25);
+        }
+        h1 { text-align: center; color: #333; margin-bottom: 10px; font-size: 28px; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+        .qr-container {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            margin-bottom: 20px;
+        }
+        .qr-code {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto 15px;
+        }
+        .secret-key {
+            font-family: monospace;
+            font-size: 18px;
+            padding: 10px;
+            background: #eee;
+            border-radius: 8px;
+            word-break: break-all;
+            margin-top: 10px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #333; font-weight: 500; }
+        .form-group input {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            font-size: 15px;
+            text-align: center;
+            letter-spacing: 5px;
+            font-size: 24px;
+        }
+        .form-group input:focus { outline: none; border-color: #667eea; }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); }
+        .instructions {
+            background: #f0f4ff;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .instructions ol { margin-left: 20px; color: #555; line-height: 1.8; }
+        .nav-links { text-align: center; margin-top: 20px; }
+        .nav-links a { color: #667eea; text-decoration: none; }
+    </style>
+    <style>
+        /* 3D Reveal Animations */
+        .reveal-3d {
+            opacity: 0;
+            transform-style: preserve-3d;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .reveal-3d.visible { opacity: 1; }
+        .reveal-from-bottom { transform: translateZ(-100px) translateY(60px) rotateX(15deg); }
+        .reveal-from-bottom.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-from-top { transform: translateZ(-100px) translateY(-60px) rotateX(-15deg); }
+        .reveal-from-top.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-scale { transform: translateZ(-200px) scale(0.5); }
+        .reveal-scale.visible { transform: translateZ(0) scale(1); }
+        .reveal-rotate { transform: translateZ(-150px) rotateY(90deg); }
+        .reveal-rotate.visible { transform: translateZ(0) rotateY(0); }
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+        .delay-400 { transition-delay: 400ms; }
+    </style>
+</head>
+<body>
+    <div class="container reveal-3d reveal-from-bottom">
+        <h1>🔐 Konfiguracja 2FA</h1>
+        <p class="subtitle">Zabezpiecz swoje konto</p>
+
+        <div class="instructions">
+            <strong>Jak skonfigurować:</strong>
+            <ol>
+                <li>Pobierz aplikację Google Authenticator lub Authy</li>
+                <li>Zeskanuj kod QR lub wprowadź klucz ręcznie</li>
+                <li>Wprowadź 6-cyfrowy kod z aplikacji</li>
+            </ol>
+        </div>
+
+        <div class="qr-container">
+            <img src="data:image/png;base64,{{ qr_code }}" class="qr-code" alt="QR Code">
+            <div style="color: #666; font-size: 14px; margin-top: 10px;">Klucz tajny:</div>
+            <div class="secret-key">{{ secret }}</div>
+        </div>
+
+        <form id="2faSetupForm" onsubmit="handle2FASetup(event)">
+            <div class="form-group">
+                <label>Kod weryfikacyjny (6 cyfr)</label>
+                <input type="text" id="totp-code" maxlength="6" pattern="[0-9]*" inputmode="numeric" required>
+            </div>
+            <button type="submit" class="btn">Aktywuj 2FA</button>
+        </form>
+
+        <div class="nav-links">
+            <a href="/settings">← Wróć do ustawień</a>
+        </div>
+    </div>
+
+    <script>
+        async function handle2FASetup(e) {
+            e.preventDefault();
+            const code = document.getElementById('totp-code').value;
+
+            const formData = new FormData();
+            formData.append('totp_code', code);
+
+            try {
+                const response = await fetch('/api/2fa/enable', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.ok) {
+                    alert('2FA zostało pomyślnie włączone!');
+                    window.location.href = '/settings';
+                } else {
+                    alert(result.error || 'Nieprawidłowy kod');
+                }
+            } catch (err) {
+                alert('Błąd połączenia');
+            }
+        }
+
+        // Auto-submit after 6 digits
+        document.getElementById('totp-code').addEventListener('input', (e) => {
+            if (e.target.value.length === 6) {
+                document.getElementById('2faSetupForm').requestSubmit();
+            }
+        });
+    </script>
+    <script>
+        // 3D Scroll Reveal Animation
+        const revealElements = document.querySelectorAll('.reveal-3d');
+        function checkReveal() {
+            const windowHeight = window.innerHeight;
+            const revealPoint = 150;
+            revealElements.forEach(el => {
+                const elementTop = el.getBoundingClientRect().top;
+                if (elementTop < windowHeight - revealPoint) {
+                    el.classList.add('visible');
+                }
+            });
+        }
+        window.addEventListener('scroll', checkReveal);
+        window.addEventListener('load', checkReveal);
+        checkReveal();
+    </script>
+</body>
+</html>

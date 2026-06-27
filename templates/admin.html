@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="/static/security.js"></script>
+    <title>Panel Admina - Messenger</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="landing-container fade-in mt-4 reveal-3d reveal-from-bottom">
+        <div class="card header">
+            <div>
+                <h1 style="color: var(--accent-color);">🛡️ Panel Admina</h1>
+                <p class="user-status">Zarządzaj użytkownikami i treściami</p>
+            </div>
+            <div class="nav-links">
+                <a href="/chat">← Czat</a>
+                <a href="/bots">🤖 Boty</a>
+                <a href="/admin/activity-logs">Logi</a>
+            </div>
+        </div>
+
+        <div class="grid stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ users|length }}</div>
+                <div class="stat-label">Użytkowników</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ reports|length }}</div>
+                <div class="stat-label">Zgłoszeń</div>
+            </div>
+            <div class="stat-card" style="background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);">
+                <div class="stat-number">{{ reports|selectattr('status', 'equalto', 'pending')|list|length }}</div>
+                <div class="stat-label">Oczekujące</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('reports')">📋 Zgłoszenia</button>
+            <button class="tab-btn" onclick="showTab('users')">👥 Użytkownicy</button>
+            <button class="tab-btn" onclick="showTab('security')">🔒 Bezpieczeństwo</button>
+            <button class="tab-btn" onclick="showTab('profanity')">🚫 Filtr wulgaryzmów</button>
+            <button class="tab-btn" onclick="showTab('logs')">📝 Logi</button>
+        </div>
+
+        <!-- Zgłoszenia -->
+        <div id="reports-tab" class="tab-content active">
+            <div class="card">
+                <h2>Oczekujące zgłoszenia</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Zgłaszający</th>
+                            <th>Zgłoszony</th>
+                            <th>Komentarz</th>
+                            <th>Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports if report.status == 'pending' %}
+                        <tr>
+                            <td>{{ report.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ report.reporter_name }}</td>
+                            <td>{{ report.reported_name }}</td>
+                            <td>{{ report.comment }}</td>
+                            <td>
+                                <button class="btn btn-success" onclick="resolveReport({ report.id })">✓ Rozwiąz</button>
+                                <button class="btn btn-danger" onclick="deleteReport({{ report.id }})">🗑️</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>Przejrzane zgłoszenia</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Zgłaszający</th>
+                            <th>Zgłoszony</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for report in reports if report.status != 'pending' %}
+                        <tr>
+                            <td>{{ report.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ report.reporter_name }}</td>
+                            <td>{{ report.reported_name }}</td>
+                            <td><span class="badge badge-{{ report.status }}">{{ report.status }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Użytkownicy -->
+        <div id="users-tab" class="tab-content">
+            <div class="card">
+                <h2>Wszyscy użytkownicy</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Użytkownik</th>
+                            <th>Status</th>
+                            <th>Rola</th>
+                            <th>Ban</th>
+                            <th>Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>
+                                {% if user.avatar_url %}
+                                <img src="{{ user.avatar_url }}" class="user-avatar-small">
+                                {% endif %}
+                                {{ user.user_name }}
+                            </td>
+                            <td>{{ user.status or '-' }}</td>
+                            <td>{% if user.is_admin %}<span class="badge badge-pending">Admin</span>{% else %}User{% endif %}</td>
+                            <td>
+                                {% if user.is_banned %}
+                                <span class="badge badge-pending">Do {{ user.banned_until.strftime('%Y-%m-%d') if user.banned_until else '∞' }}</span>
+                                {% else %}
+                                <span class="badge badge-resolved">Nie</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if not user.is_admin %}
+                                <button class="btn btn-warning" onclick="showWarnModal({{ user.id }}, '{{ user.user_name }}')">⚠️</button>
+                                <button class="btn btn-danger" onclick="showBanModal({{ user.id }}, '{{ user.user_name }}')">🚫</button>
+                                {% if user.is_banned %}
+                                <button class="btn btn-success" onclick="unbanUser({{ user.id }})">✓</button>
+                                {% endif %}
+                                <button class="btn btn-secondary" onclick="deleteUser({{ user.id }})">🗑️</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Bezpieczeństwo -->
+        <div id="security-tab" class="tab-content">
+            <div class="card">
+                <h2>📡 Aktywne porty sensorów</h2>
+                <p style="color: var(--text-muted); margin-bottom: 15px;">Wszystkie porty wysyłające dane do sensorów</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Port</th>
+                            <th>IP</th>
+                            <th>Ostatni request</th>
+                            <th>Requesty</th>
+                            <th>Ostatni raz</th>
+                            <th>Status</th>
+                            <th>Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="active-ports-list">
+                        <tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Ładowanie...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>🔌 Zablokowane porty</h2>
+                <p style="color: var(--text-muted); margin-bottom: 15px;">Porty źródłowe zablokowane za flood sensorów</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Port</th>
+                            <th>Powód</th>
+                            <th>Wygasa o</th>
+                            <th>Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="blocked-ports-list">
+                        <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Ładowanie...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>🌐 Zablokowane IP</h2>
+                <p style="color: var(--text-muted); margin-bottom: 15px;">Adresy IP zablokowane przez system bezpieczeństwa</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>IP</th>
+                            <th>Powód</th>
+                            <th>Wygaśnie</th>
+                            <th>Permanent</th>
+                            <th>Akcje</th>
+                        </tr>
+                    </thead>
+                    <tbody id="blocked-ips-list">
+                        <tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Ładowanie...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Filtr wulgaryzmów -->
+        <div id="profanity-tab" class="tab-content">
+            <div class="card">
+                <h2>Dodaj słowo</h2>
+                <form onsubmit="addProfanity(event)" style="display: flex; gap: 10px; margin-bottom: 20px;">
+                    <input type="text" id="profanity-word" placeholder="Słowo" required style="flex: 1; margin-bottom: 0;">
+                    <input type="text" id="profanity-replacement" placeholder="Zamiennik" value="****" style="width: 150px; margin-bottom: 0;">
+                    <button type="submit" class="btn btn-success">Dodaj</button>
+                </form>
+
+                <h2>Lista słów</h2>
+                <div id="profanity-list">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Logi -->
+        <div id="logs-tab" class="tab-content">
+            <div class="card">
+                <h2>Ostatnie akcje</h2>
+                <div id="activity-logs">
+                    <!-- Loaded via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Warn Modal -->
+    <div id="warn-modal" class="modal">
+        <div class="modal-content">
+            <h2>⚠️ Wystaw ostrzeżenie</h2>
+            <input type="hidden" id="warn-user-id">
+            <p id="warn-username" style="margin-bottom: 15px; color: var(--text-muted);"></p>
+            <textarea id="warn-reason" placeholder="Powód ostrzeżenia" rows="4"></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('warn-modal')">Anuluj</button>
+                <button class="btn btn-warning" onclick="submitWarn()">Wyślij</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ban Modal -->
+    <div id="ban-modal" class="modal">
+        <div class="modal-content">
+            <h2>🚫 Zbanuj użytkownika</h2>
+            <input type="hidden" id="ban-user-id">
+            <p id="ban-username" style="margin-bottom: 15px; color: var(--text-muted);"></p>
+            <label>Czas trwania (godziny)</label>
+            <input type="number" id="ban-duration" value="24" min="1" max="720">
+            <label>Powód</label>
+            <textarea id="ban-reason" placeholder="Powód bana" rows="3"></textarea>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('ban-modal')">Anuluj</button>
+                <button class="btn btn-danger" onclick="submitBan()">Zbanuj</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            event.target.classList.add('active');
+
+            // Load security data when tab is shown
+            if (tabName === 'security') {
+                loadActivePorts();
+                loadBlockedPorts();
+                loadBlockedIPs();
+            }
+        }
+        
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('show');
+        }
+        
+        function showWarnModal(userId, username) {
+            document.getElementById('warn-user-id').value = userId;
+            document.getElementById('warn-username').innerText = username;
+            document.getElementById('warn-modal').classList.add('show');
+        }
+        
+        function showBanModal(userId, username) {
+            document.getElementById('ban-user-id').value = userId;
+            document.getElementById('ban-username').innerText = username;
+            document.getElementById('ban-modal').classList.add('show');
+        }
+        
+        async function submitWarn() {
+            const userId = document.getElementById('warn-user-id').value;
+            const reason = document.getElementById('warn-reason').value;
+            
+            if (!reason) { alert('Podaj powód'); return; }
+            
+            const formData = new FormData();
+            formData.append('reason', reason);
+            
+            await fetch(`/api/admin/warn/${userId}`, { method: 'POST', body: formData });
+            closeModal('warn-modal');
+            alert('Ostrzeżenie wystawione');
+        }
+        
+        async function submitBan() {
+            const userId = document.getElementById('ban-user-id').value;
+            const duration = document.getElementById('ban-duration').value;
+            const reason = document.getElementById('ban-reason').value;
+            
+            if (!reason) { alert('Podaj powód'); return; }
+            
+            const formData = new FormData();
+            formData.append('duration_hours', duration);
+            formData.append('reason', reason);
+            
+            await fetch(`/api/admin/ban/${userId}`, { method: 'POST', body: formData });
+            closeModal('ban-modal');
+            location.reload();
+        }
+        
+        async function unbanUser(userId) {
+            await fetch(`/api/admin/unban/${userId}`, { method: 'POST' });
+            location.reload();
+        }
+        
+        async function deleteUser(userId) {
+            if (!confirm('Czy na pewno chcesz usunąć tego użytkownika?')) return;
+            await fetch(`/admin/user/${userId}`, { method: 'DELETE' });
+            location.reload();
+        }
+        
+        async function deleteReport(reportId) {
+            if (!confirm('Usunąć zgłoszenie?')) return;
+            await fetch(`/report/${reportId}`, { method: 'DELETE' });
+            location.reload();
+        }
+        
+        async function resolveReport(reportId) {
+            // Update report status to resolved
+            alert('Zgłoszenie oznaczone jako rozwiązane');
+        }
+        
+        async function addProfanity(e) {
+            e.preventDefault();
+            const word = document.getElementById('profanity-word').value;
+            const replacement = document.getElementById('profanity-replacement').value;
+            
+            const formData = new FormData();
+            formData.append('word', word);
+            formData.append('replacement', replacement);
+            
+            await fetch('/api/admin/profanity/add', { method: 'POST', body: formData });
+            document.getElementById('profanity-word').value = '';
+            loadProfanity();
+        }
+        
+        async function loadProfanity() {
+            // Load profanity list
+        }
+        
+        async function loadActivityLogs() {
+            // Load activity logs
+        }
+
+        async function loadBlockedPorts() {
+            try {
+                const res = await fetch('/api/admin/blocked-ports');
+                const data = await res.json();
+                const tbody = document.getElementById('blocked-ports-list');
+
+                if (!data.blocked_ports || data.blocked_ports.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Brak zablokowanych portów ✓</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.blocked_ports.map(p => `
+                    <tr>
+                        <td><code>${p.port}</code></td>
+                        <td>${p.reason}</td>
+                        <td>${p.expires_at}</td>
+                        <td>
+                            <button class="btn btn-success" onclick="unblockPort(${p.port})">✓ Odblokuj</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Error loading ports:', e);
+            }
+        }
+
+        async function loadActivePorts() {
+            try {
+                const res = await fetch('/api/admin/active-ports');
+                const data = await res.json();
+                const tbody = document.getElementById('active-ports-list');
+
+                if (!data.active_ports || data.active_ports.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Brak aktywnych portów</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.active_ports.map(p => `
+                    <tr style="${p.is_blocked ? 'background: rgba(231, 76, 60, 0.1);' : ''}">
+                        <td><code>${p.port}</code></td>
+                        <td><code>${p.ip}</code></td>
+                        <td><code style="font-size: 12px;">${p.last_path || '-'}</code></td>
+                        <td><strong>${p.request_count}</strong></td>
+                        <td>${new Date(p.last_seen).toLocaleTimeString('pl-PL')}</td>
+                        <td>${p.is_blocked 
+                            ? '<span class="badge badge-pending">🚫 Zablokowany</span>' 
+                            : '<span class="badge badge-resolved">✓ Aktywny</span>'
+                        }</td>
+                        <td>
+                            ${p.is_blocked 
+                                ? `<button class="btn btn-success" onclick="unblockPort(${p.port})">✓ Odblokuj</button>`
+                                : `<button class="btn btn-warning" onclick="blockPort(${p.port}, '${p.last_path || 'unknown'}')">🚫 Zablokuj</button>`
+                            }
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Error loading active ports:', e);
+            }
+        }
+
+        async function blockPort(port, sensorId) {
+            const formData = new FormData();
+            formData.append('port', port);
+            formData.append('reason', `Manual block - sensor: ${sensorId}`);
+            formData.append('duration_seconds', '300');
+            await fetch('/api/admin/block-port', { method: 'POST', body: formData });
+            loadActivePorts();
+            loadBlockedPorts();
+        }
+
+        async function unblockPort(port) {
+            const formData = new FormData();
+            formData.append('port', port);
+            await fetch('/api/admin/unblock-port', { method: 'POST', body: formData });
+            loadBlockedPorts();
+        }
+
+        async function loadBlockedIPs() {
+            try {
+                const res = await fetch('/api/admin/blocked-ips');
+                const data = await res.json();
+                const tbody = document.getElementById('blocked-ips-list');
+
+                if (!data.blocked_ips || data.blocked_ips.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Brak zablokowanych IP ✓</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.blocked_ips.map(ip => `
+                    <tr>
+                        <td><code>${ip.ip}</code></td>
+                        <td>${ip.reason}</td>
+                        <td>${ip.expires_at}</td>
+                        <td>${ip.permanent ? '✓' : '-'}</td>
+                        <td>
+                            <button class="btn btn-success" onclick="unblockIP('${ip.ip}')">✓ Odblokuj</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Error loading IPs:', e);
+            }
+        }
+
+        async function unblockIP(ip) {
+            const formData = new FormData();
+            formData.append('ip', ip);
+            await fetch('/api/admin/unblock-ip', { method: 'POST', body: formData });
+            loadBlockedIPs();
+        }
+
+        // Auto-refresh security tab every 10 seconds
+        setInterval(() => {
+            if (document.getElementById('security-tab').classList.contains('active')) {
+                loadActivePorts();
+                loadBlockedPorts();
+                loadBlockedIPs();
+            }
+        }, 10000);
+        
+        // Close modals on outside click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.classList.remove('show');
+            };
+        });
+    </script>
+    <script>
+        // 3D Scroll Reveal Animation
+        const revealElements = document.querySelectorAll('.reveal-3d');
+        function checkReveal() {
+            const windowHeight = window.innerHeight;
+            const revealPoint = 150;
+            revealElements.forEach(el => {
+                const elementTop = el.getBoundingClientRect().top;
+                if (elementTop < windowHeight - revealPoint) {
+                    el.classList.add('visible');
+                }
+            });
+        }
+        window.addEventListener('scroll', checkReveal);
+        window.addEventListener('load', checkReveal);
+        checkReveal();
+    </script>
+</body>
+</html>

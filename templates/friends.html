@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Znajomi - Messenger</title>
+    <script src="/static/security.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --primary: #111; --bg: #f5f4f1; --text: #111; --text-muted: #888;
+            --border: rgba(0, 0, 0, 0.06); --accent: #3a5bd9; --card-bg: #fff;
+        }
+        body.dark-mode {
+            --bg: #0a0a0a; --text: #f5f4f1; --text-muted: #666;
+            --border: rgba(255, 255, 255, 0.08); --card-bg: #141414;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { background: var(--card-bg); border-radius: 20px; padding: 30px; margin-bottom: 20px; }
+        .header h1 { color: var(--text); margin-bottom: 10px; }
+        .nav-links a { color: var(--accent); text-decoration: none; margin-right: 15px; }
+        .settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; }
+        .card { background: var(--card-bg); border-radius: 20px; padding: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 18px; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--border); }
+        .friend-item, .request-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px; border: 1px solid var(--border); border-radius: 12px;
+            margin-bottom: 10px; transition: 0.2s;
+        }
+        .friend-item:hover, .request-item:hover { transform: translateX(5px); }
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-success { background: #27ae60; color: white; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .add-friend-form { display: flex; gap: 10px; margin-bottom: 20px; }
+        .add-friend-form input { flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border); }
+    </style>
+    <style>
+        /* 3D Reveal Animations */
+        .reveal-3d {
+            opacity: 0;
+            transform-style: preserve-3d;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .reveal-3d.visible { opacity: 1; }
+        .reveal-from-bottom { transform: translateZ(-100px) translateY(60px) rotateX(15deg); }
+        .reveal-from-bottom.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-from-top { transform: translateZ(-100px) translateY(-60px) rotateX(-15deg); }
+        .reveal-from-top.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-scale { transform: translateZ(-200px) scale(0.5); }
+        .reveal-scale.visible { transform: translateZ(0) scale(1); }
+        .reveal-rotate { transform: translateZ(-150px) rotateY(90deg); }
+        .reveal-rotate.visible { transform: translateZ(0) rotateY(0); }
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+        .delay-400 { transition-delay: 400ms; }
+    </style>
+</head>
+<body>
+    <div class="container reveal-3d reveal-from-bottom">
+        <div class="header">
+            <h1>👥 Znajomi</h1>
+            <p style="color: var(--text-muted);">Zarządzaj znajomymi</p>
+            <div class="nav-links" style="margin-top: 15px;">
+                <a href="/chat">← Czat</a>
+                <a href="/settings">Ustawienia</a>
+                <a href="/groups">Grupy</a>
+            </div>
+        </div>
+
+        <div class="settings-grid">
+            <div class="card">
+                <h2>Dodaj znajomego</h2>
+                <form class="add-friend-form" onsubmit="addFriend(event)">
+                    <input type="text" id="friend-username" placeholder="Nazwa użytkownika" required>
+                    <button type="submit" class="btn btn-primary">Wyślij</button>
+                </form>
+
+                <h3 style="margin-top: 20px; font-size: 14px; color: var(--text-muted);">Oczekujące zaproszenia</h3>
+                {% for req in pending_requests %}
+                <div class="request-item">
+                    <div class="user-info">
+                        <div class="avatar">{{ req.sender.user_name[:2].upper() }}</div>
+                        <span>{{ req.sender.user_name }}</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-success" onclick="acceptRequest({{ req.id }})">✓</button>
+                        <button class="btn btn-danger" onclick="rejectRequest({{ req.id }})">✗</button>
+                    </div>
+                </div>
+                {% else %}
+                <p style="color: var(--text-muted); font-size: 14px;">Brak oczekujących zaproszeń</p>
+                {% endfor %}
+            </div>
+
+            <div class="card">
+                <h2>Twoi znajomi</h2>
+                {% for friend in friends %}
+                <div class="friend-item">
+                    <div class="user-info">
+                        {% if friend.avatar_url %}
+                        <img src="{{ friend.avatar_url }}" class="avatar" style="object-fit: cover;">
+                        {% else %}
+                        <div class="avatar">{{ friend.user_name[:2].upper() }}</div>
+                        {% endif %}
+                        <span>{{ friend.user_name }}</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" onclick="location.href='/profile/{{ friend.user_name }}'">Profil</button>
+                        <button class="btn btn-danger" onclick="removeFriend({{ friend.id }})">Usuń</button>
+                    </div>
+                </div>
+                {% else %}
+                <p style="color: var(--text-muted); font-size: 14px; text-align: center; padding: 20px;">Nie masz jeszcze znajomych</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function addFriend(e) {
+            e.preventDefault();
+            const username = document.getElementById('friend-username').value;
+
+            try {
+                const response = await fetch(`/api/friend/request/${username}`, { method: 'POST' });
+                const result = await response.json();
+                if (result.ok) {
+                    alert('Zaproszenie wysłane!');
+                    location.reload();
+                } else {
+                    alert(result.error || 'Błąd');
+                }
+            } catch (err) {
+                alert('Błąd połączenia');
+            }
+        }
+
+        async function acceptRequest(requestId) {
+            try {
+                const response = await fetch(`/api/friend/accept/${requestId}`, { method: 'POST' });
+                const result = await response.json();
+                if (result.ok) {
+                    location.reload();
+                }
+            } catch (err) {
+                alert('Błąd');
+            }
+        }
+
+        async function rejectRequest(requestId) {
+            try {
+                const response = await fetch(`/api/friend/reject/${requestId}`, { method: 'POST' });
+                const result = await response.json();
+                if (result.ok) location.reload();
+            } catch (err) {
+                alert('Błąd');
+            }
+        }
+
+        async function removeFriend(friendId) {
+            if (!confirm('Usunąć tego znajomego?')) return;
+            try {
+                const response = await fetch(`/api/friend/${friendId}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (result.ok) location.reload();
+            } catch (err) {
+                alert('Błąd');
+            }
+        }
+    </script>
+    <script>
+        // 3D Scroll Reveal Animation
+        const revealElements = document.querySelectorAll('.reveal-3d');
+        function checkReveal() {
+            const windowHeight = window.innerHeight;
+            const revealPoint = 150;
+            revealElements.forEach(el => {
+                const elementTop = el.getBoundingClientRect().top;
+                if (elementTop < windowHeight - revealPoint) {
+                    el.classList.add('visible');
+                }
+            });
+        }
+        window.addEventListener('scroll', checkReveal);
+        window.addEventListener('load', checkReveal);
+        checkReveal();
+    </script>
+</body>
+</html>

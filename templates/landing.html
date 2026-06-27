@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messenger - Komunikuj się swobodnie</title>
+    
+    <style>
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary: #111;
+            --bg: #f5f4f1;
+            --text: #111;
+            --accent: #3a5bd9;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+            cursor: none; /* Hide default cursor */
+        }
+
+        /* ── Custom Cursor (Invert Spotlight) ── */
+        .cursor {
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            mix-blend-mode: difference;
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .cursor.hover {
+            width: 60px;
+            height: 60px;
+        }
+
+        #canvas-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        header {
+            padding: 2rem 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        nav a {
+            text-decoration: none;
+            color: var(--text);
+            margin-left: 2rem;
+            font-weight: 500;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+
+        nav a:hover {
+            opacity: 0.7;
+        }
+
+        .hero {
+            padding: 6rem 0 4rem;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 4rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 1.5rem;
+            line-height: 1.1;
+        }
+
+        .hero p {
+            font-size: 1.25rem;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto 2.5rem;
+        }
+
+        .cta-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.8rem 2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            font-size: 15px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+
+        .btn-secondary {
+            background: #fff;
+            color: var(--primary);
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .btn-secondary:hover {
+            background: #fafafa;
+        }
+
+        .features {
+            padding: 4rem 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 2.5rem;
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-card .icon {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            display: block;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        footer {
+            padding: 4rem 0 2rem;
+            text-align: center;
+            font-size: 14px;
+            color: #999;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 { font-size: 2.5rem; }
+            .features { grid-template-columns: 1fr; }
+        }
+
+        /* ── 3D Entrance Animations ── */
+        .reveal-3d {
+            opacity: 0;
+            transform-style: preserve-3d;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .reveal-3d.visible {
+            opacity: 1;
+        }
+
+        .reveal-from-bottom {
+            transform: translateZ(-100px) translateY(80px) rotateX(20deg);
+        }
+        .reveal-from-bottom.visible {
+            transform: translateZ(0) translateY(0) rotateX(0);
+        }
+
+        .reveal-from-top {
+            transform: translateZ(-100px) translateY(-80px) rotateX(-20deg);
+        }
+        .reveal-from-top.visible {
+            transform: translateZ(0) translateY(0) rotateX(0);
+        }
+
+        .reveal-from-left {
+            transform: translateZ(-100px) translateX(-100px) rotateY(-30deg);
+        }
+        .reveal-from-left.visible {
+            transform: translateZ(0) translateX(0) rotateY(0);
+        }
+
+        .reveal-from-right {
+            transform: translateZ(-100px) translateX(100px) rotateY(30deg);
+        }
+        .reveal-from-right.visible {
+            transform: translateZ(0) translateX(0) rotateY(0);
+        }
+
+        .reveal-scale {
+            transform: translateZ(-200px) scale(0.5);
+        }
+        .reveal-scale.visible {
+            transform: translateZ(0) scale(1);
+        }
+
+        .reveal-rotate {
+            transform: translateZ(-150px) rotateY(90deg);
+        }
+        .reveal-rotate.visible {
+            transform: translateZ(0) rotateY(0);
+        }
+
+        .reveal-flip {
+            transform: translateZ(-100px) rotateX(90deg);
+        }
+        .reveal-flip.visible {
+            transform: translateZ(0) rotateX(0);
+        }
+
+        .reveal-swing {
+            transform: translateZ(-100px) rotateZ(-45deg);
+            transform-origin: top center;
+        }
+        .reveal-swing.visible {
+            transform: translateZ(0) rotateZ(0);
+        }
+
+        /* Staggered delays */
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+        .delay-400 { transition-delay: 400ms; }
+        .delay-500 { transition-delay: 500ms; }
+        .delay-600 { transition-delay: 600ms; }
+        .delay-700 { transition-delay: 700ms; }
+
+        /* Hero 3D depth layers */
+        .hero {
+            perspective: 1500px;
+        }
+
+        .hero h1 {
+            transform-style: preserve-3d;
+            animation: heroFloat 6s ease-in-out infinite;
+        }
+
+        @keyframes heroFloat {
+            0%, 100% { transform: translateZ(0) translateY(0); }
+            50% { transform: translateZ(20px) translateY(-5px); }
+        }
+
+        .hero p {
+            transform-style: preserve-3d;
+            animation: heroFadeIn 1.2s ease-out 0.3s both;
+        }
+
+        @keyframes heroFadeIn {
+            from {
+                opacity: 0;
+                transform: translateZ(-50px) translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateZ(0) translateY(0);
+            }
+        }
+
+        .cta-buttons {
+            transform-style: preserve-3d;
+            animation: ctaSlideIn 1s ease-out 0.6s both;
+        }
+
+        @keyframes ctaSlideIn {
+            from {
+                opacity: 0;
+                transform: translateZ(-80px) scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: translateZ(0) scale(1);
+            }
+        }
+
+        /* 3D Card hover effect */
+        .feature-card {
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px) translateZ(30px) rotateX(5deg) rotateY(-5deg);
+            box-shadow: 
+                0 30px 60px rgba(0, 0, 0, 0.15),
+                0 0 30px rgba(58, 91, 217, 0.1);
+        }
+
+        .feature-card .icon {
+            transform-style: preserve-3d;
+            transition: transform 0.4s ease;
+        }
+
+        .feature-card:hover .icon {
+            transform: translateZ(20px) rotateY(15deg) scale(1.2);
+        }
+
+        /* 3D Parallax on scroll */
+        .parallax-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        /* Logo 3D effect */
+        .logo {
+            transform-style: preserve-3d;
+            transition: transform 0.4s ease;
+        }
+
+        .logo:hover {
+            transform: translateZ(20px) rotateX(-10deg);
+        }
+
+        /* Nav link 3D hover */
+        nav a {
+            transform-style: preserve-3d;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        nav a:hover {
+            opacity: 0.7;
+            transform: translateZ(10px) translateY(-3px);
+            text-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Button 3D effect */
+        .btn-3d {
+            transform-style: preserve-3d;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .btn-3d::after {
+            content: '';
+            position: absolute;
+            bottom: -6px;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: inherit;
+            border-radius: inherit;
+            transform: translateZ(-1px);
+            filter: brightness(0.8);
+            transition: all 0.3s ease;
+        }
+
+        .btn-3d:hover::after {
+            transform: translateZ(-15px);
+            bottom: -15px;
+        }
+
+        .btn-3d:active::after {
+            transform: translateZ(-5px);
+            bottom: -8px;
+        }
+
+        /* 3D Text depth */
+        .text-3d {
+            text-shadow: 
+                1px 1px 0 rgba(0, 0, 0, 0.05),
+                2px 2px 0 rgba(0, 0, 0, 0.05),
+                3px 3px 0 rgba(0, 0, 0, 0.05),
+                4px 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 3D Section divider */
+        .section-divider {
+            height: 100px;
+            perspective: 500px;
+            overflow: hidden;
+        }
+
+        .divider-wave {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(135deg, var(--accent) 0%, #764ba2 100%);
+            opacity: 0.1;
+            transform: rotateX(60deg);
+            animation: waveMove 10s linear infinite;
+        }
+
+        @keyframes waveMove {
+            0% { transform: rotateX(60deg) translateX(0) translateY(0); }
+            100% { transform: rotateX(60deg) translateX(-50%) translateY(-50%); }
+        }
+
+        /* Staggered card entrance */
+        .feature-card:nth-child(1) { animation-delay: 0.1s; }
+        .feature-card:nth-child(2) { animation-delay: 0.2s; }
+        .feature-card:nth-child(3) { animation-delay: 0.3s; }
+        .feature-card:nth-child(4) { animation-delay: 0.4s; }
+        .feature-card:nth-child(5) { animation-delay: 0.5s; }
+        .feature-card:nth-child(6) { animation-delay: 0.6s; }
+    </style>
+</head>
+<body>
+    <div class="cursor"></div>
+    <canvas id="canvas-bg"></canvas>
+
+    <div class="container">
+        <header>
+            <div class="logo">Messenger</div>
+            <nav>
+                {% if current_user %}
+                    <a href="/chat">Przejdź do czatu</a>
+                    <a href="/logout">Wyloguj</a>
+                {% else %}
+                    <a href="/login">Zaloguj się</a>
+                    <a href="/register">Zarejestruj się</a>
+                {% endif %}
+            </nav>
+        </header>
+
+        <section class="hero">
+            <h1 class="reveal-3d reveal-from-bottom delay-100 text-3d">Więcej niż tylko<br>wiadomości.</h1>
+            <p class="reveal-3d reveal-from-bottom delay-200">Nowoczesny, szybki i bezpieczny komunikator do codziennej rozmowy. Bądź zawsze w kontakcie z tymi, na których ci zależy.</p>
+            <div class="cta-buttons reveal-3d reveal-scale delay-300">
+                {% if current_user %}
+                    <a href="/chat" class="btn btn-primary btn-3d">Rozpocznij rozmowę</a>
+                {% else %}
+                    <a href="/register" class="btn btn-primary btn-3d">Utwórz konto</a>
+                    <a href="/login" class="btn btn-secondary btn-3d">Zaloguj się</a>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="features">
+            <div class="feature-card reveal-3d reveal-from-bottom delay-100">
+                <span class="icon">⚡</span>
+                <h3>Natychmiastowość</h3>
+                <p>Dzięki technologii WebSockets twoje wiadomości docierają natychmiast. Żadnych opóźnień, tylko żywa rozmowa.</p>
+            </div>
+            <div class="feature-card">
+                <span class="icon">📁</span>
+                <h3>Udostępnianie plików</h3>
+                <p>Wysyłaj zdjęcia, dokumenty i wszelkie inne pliki jednym kliknięciem. Wygodnie i szybko.</p>
+            </div>
+            <div class="feature-card">
+                <span class="icon">😊</span>
+                <h3>Emocje</h3>
+                <p>Wyrażaj siebie za pomocą pełnego zestawu emoji. Rozmowa staje się jaśniejsza i bardziej szczera.</p>
+            </div>
+<div class="feature-card reveal-3d reveal-from-bottom delay-100">
+                <span class="icon">⚡</span>
+                <h3>Natychmiastowość</h3>
+                <p>Dzięki technologii WebSockets twoje wiadomości docierają natychmiast. Żadnych opóźnień, tylko żywa rozmowa.</p>
+            </div>
+            <div class="feature-card reveal-3d reveal-from-bottom delay-200">
+                <span class="icon">📁</span>
+                <h3>Udostępnianie plików</h3>
+                <p>Wysyłaj zdjęcia, dokumenty i wszelkie inne pliki jednym kliknięciem. Wygodnie i szybko.</p>
+            </div>
+            <div class="feature-card reveal-3d reveal-from-bottom delay-300">
+                <span class="icon">😊</span>
+                <h3>Emocje</h3>
+                <p>Wyrażaj siebie za pomocą pełnego zestawu emoji. Rozmowa staje się jaśniejsza i bardziej szczera.</p>
+            </div>
+            <div class="feature-card reveal-3d reveal-from-bottom delay-400">
+                <span class="icon">🟢</span>
+                <h3>Status online</h3>
+                <p>Zawsze wiedz, kto z twoich znajomych jest teraz w sieci i gotowy do rozmowy.</p>
+            </div>
+            <div class="feature-card reveal-3d reveal-from-bottom delay-500">
+                <span class="icon">🛡️</span>
+                <h3>Bezpieczeństwo</h3>
+                <p>Wbudowany system skarg i administracji pozwala utrzymać przyjazną atmosferę w czacie.</p>
+            </div>
+            <div class="feature-card reveal-3d reveal-from-bottom delay-600">
+                <span class="icon">🌑</span>
+                <h3>Minimalizm</h3>
+                <p>Czysty i nowoczesny interfejs, który nie odwraca uwagi od tego, co najważniejsze — twojej rozmowy.</p>
+            </div>
+            <div class="feature-card">
+                <span class="icon">🛡️</span>
+                <h3>Bezpieczeństwo</h3>
+                <p>Wbudowany system skarg i administracji pozwala utrzymać przyjazną atmosferę w czacie.</p>
+            </div>
+            <div class="feature-card">
+                <span class="icon">🌑</span>
+                <h3>Minimalizm</h3>
+                <p>Czysty i nowoczesny interfejs, który nie odwraca uwagi od tego, co najważniejsze — twojej rozmowy.</p>
+            </div>
+        </section>
+
+        <footer>
+            &copy; 2024 Messenger Inc. Wszelkie prawa zastrzeżone.
+        </footer>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas-bg');
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        const blobs = Array.from({ length: 40 }, () => ({
+            x: Math.random(),
+            y: Math.random(),
+            r: 50 + Math.random() * 120,
+            vx: (Math.random() - 0.5) * 0.0002,
+            vy: (Math.random() - 0.5) * 0.0002,
+            hue: 200 + Math.random() * 60,
+            alpha: 0.05 + Math.random() * 0.08
+        }));
+
+        function draw() {
+            const W = canvas.width, H = canvas.height;
+            ctx.clearRect(0, 0, W, H);
+            for (const b of blobs) {
+                b.x += b.vx; b.y += b.vy;
+                if (b.x < 0 || b.x > 1) b.vx *= -1;
+                if (b.y < 0 || b.y > 1) b.vy *= -1;
+
+                const g = ctx.createRadialGradient(b.x * W, b.y * H, 0, b.x * W, b.y * H, b.r);
+                g.addColorStop(0, `hsla(${b.hue}, 60%, 70%, ${b.alpha})`);
+                g.addColorStop(1, `hsla(${b.hue}, 60%, 70%, 0)`);
+                ctx.fillStyle = g;
+                ctx.fillRect(0, 0, W, H);
+            }
+            requestAnimationFrame(draw);
+        }
+        draw();
+
+        // Custom Cursor Logic
+        const cursor = document.querySelector(".cursor");
+
+        window.addEventListener("mousemove", (e) => {
+            cursor.style.left = `${e.clientX}px`;
+            cursor.style.top = `${e.clientY}px`;
+        });
+
+        document.querySelectorAll("a, button, .feature-card").forEach(el => {
+            el.addEventListener("mouseenter", () => cursor.classList.add("hover"));
+            el.addEventListener("mouseleave", () => cursor.classList.remove("hover"));
+        });
+
+        // 3D Scroll Reveal Animation
+        const revealElements = document.querySelectorAll('.reveal-3d');
+
+        function checkReveal() {
+            const windowHeight = window.innerHeight;
+            const revealPoint = 150;
+
+            revealElements.forEach(el => {
+                const elementTop = el.getBoundingClientRect().top;
+
+                if (elementTop < windowHeight - revealPoint) {
+                    el.classList.add('visible');
+                }
+            });
+        }
+
+        window.addEventListener('scroll', checkReveal);
+        window.addEventListener('load', checkReveal);
+
+        // Initial check for elements already in view
+        checkReveal();
+
+        // 3D Parallax effect on scroll
+        window.addEventListener('scroll', () => {
+            const scrolled = window.pageYOffset;
+            const hero = document.querySelector('.hero h1');
+            if (hero) {
+                hero.style.transform = `translateZ(${scrolled * 0.1}px) translateY(${scrolled * 0.02}px)`;
+            }
+        });
+    </script>
+</body>
+</html>

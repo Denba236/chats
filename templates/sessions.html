@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sesje - Messenger</title>
+    <script src="/static/security.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        :root {
+            --primary: #111; --bg: #f5f4f1; --text: #111; --text-muted: #888;
+            --border: rgba(0, 0, 0, 0.06); --accent: #3a5bd9; --card-bg: #fff;
+        }
+        body.dark-mode {
+            --bg: #0a0a0a; --text: #f5f4f1; --text-muted: #666;
+            --border: rgba(255, 255, 255, 0.08); --card-bg: #141414;
+        }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header { background: var(--card-bg); border-radius: 20px; padding: 30px; margin-bottom: 20px; }
+        .header h1 { color: var(--text); margin-bottom: 10px; }
+        .nav-links a { color: var(--accent); text-decoration: none; margin-right: 15px; }
+        .card { background: var(--card-bg); border-radius: 20px; padding: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+        .session-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; border: 1px solid var(--border); border-radius: 12px;
+            margin-bottom: 15px; transition: 0.2s;
+        }
+        .session-item:hover { transform: translateX(5px); }
+        .session-info { display: flex; align-items: center; gap: 15px; }
+        .session-icon { font-size: 24px; }
+        .session-details h3 { font-size: 14px; margin-bottom: 4px; }
+        .session-details p { font-size: 12px; color: var(--text-muted); }
+        .btn { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.2s; }
+        .btn-danger { background: #e74c3c; color: white; }
+        .btn-danger:hover { opacity: 0.9; }
+        .current-badge { background: var(--accent); color: white; padding: 4px 12px; border-radius: 20px; font-size: 11px; }
+        .actions { margin-top: 20px; }
+        .btn-block { width: 100%; padding: 14px; margin-bottom: 10px; }
+    </style>
+    <style>
+        /* 3D Reveal Animations */
+        .reveal-3d {
+            opacity: 0;
+            transform-style: preserve-3d;
+            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .reveal-3d.visible { opacity: 1; }
+        .reveal-from-bottom { transform: translateZ(-100px) translateY(60px) rotateX(15deg); }
+        .reveal-from-bottom.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-from-top { transform: translateZ(-100px) translateY(-60px) rotateX(-15deg); }
+        .reveal-from-top.visible { transform: translateZ(0) translateY(0) rotateX(0); }
+        .reveal-scale { transform: translateZ(-200px) scale(0.5); }
+        .reveal-scale.visible { transform: translateZ(0) scale(1); }
+        .reveal-rotate { transform: translateZ(-150px) rotateY(90deg); }
+        .reveal-rotate.visible { transform: translateZ(0) rotateY(0); }
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+        .delay-400 { transition-delay: 400ms; }
+    </style>
+</head>
+<body>
+    <div class="container reveal-3d reveal-from-bottom">
+        <div class="header">
+            <h1>🔑 Zarządzanie sesjami</h1>
+            <p style="color: var(--text-muted);">Aktywne sesje twojego konta</p>
+            <div class="nav-links" style="margin-top: 15px;">
+                <a href="/chat">← Czat</a>
+                <a href="/settings">Ustawienia</a>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-bottom: 20px;">Twoje sesje</h2>
+            
+            {% for session in sessions %}
+            <div class="session-item">
+                <div class="session-info">
+                    <span class="session-icon">💻</span>
+                    <div class="session-details">
+                        <h3>{{ session.device_info[:50] }}{% if session.device_info|length > 50 %}...{% endif %}</h3>
+                        <p>IP: {{ session.ip_address or 'Nieznane' }} | Ostatnia aktywność: {{ session.last_activity.strftime('%Y-%m-%d %H:%M') }}</p>
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    {% if loop.first %}
+                    <span class="current-badge">Aktualna</span>
+                    {% else %}
+                    <button class="btn btn-danger" onclick="revokeSession({{ session.id }})">Wyloguj</button>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
+            <p style="color: var(--text-muted); text-align: center; padding: 40px;">Brak aktywnych sesji</p>
+            {% endfor %}
+
+            <div class="actions">
+                <button class="btn btn-danger btn-block" onclick="revokeAllSessions()">Wyloguj wszystkie inne sesje</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function revokeSession(sessionId) {
+            if (!confirm('Czy na pewno chcesz wylogować tę sesję?')) return;
+
+            try {
+                const response = await fetch(`/api/session/revoke/${sessionId}`, { method: 'POST' });
+                const result = await response.json();
+                if (result.ok) {
+                    location.reload();
+                }
+            } catch (err) {
+                alert('Błąd');
+            }
+        }
+
+        async function revokeAllSessions() {
+            if (!confirm('Czy na pewno chcesz wylogować wszystkie inne sesje?')) return;
+
+            try {
+                const response = await fetch('/api/sessions/revoke-all', { method: 'POST' });
+                const result = await response.json();
+                if (result.ok) {
+                    alert('Wszystkie inne sesje zostały wylogowane');
+                    location.reload();
+                }
+            } catch (err) {
+                alert('Błąd');
+            }
+        }
+    </script>
+    <script>
+        // 3D Scroll Reveal Animation
+        const revealElements = document.querySelectorAll('.reveal-3d');
+        function checkReveal() {
+            const windowHeight = window.innerHeight;
+            const revealPoint = 150;
+            revealElements.forEach(el => {
+                const elementTop = el.getBoundingClientRect().top;
+                if (elementTop < windowHeight - revealPoint) {
+                    el.classList.add('visible');
+                }
+            });
+        }
+        window.addEventListener('scroll', checkReveal);
+        window.addEventListener('load', checkReveal);
+        checkReveal();
+    </script>
+</body>
+</html>
