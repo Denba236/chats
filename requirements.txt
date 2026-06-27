@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+aiomysql
+jinja2
+python-multipart
+starlette
+bcrypt
+pyotp
+python-jose[cryptography]
+aiohttp
+Pillow
+websockets
+qrcode[pil]
+python-dotenv
+authlib
